@@ -1,8 +1,6 @@
-﻿using System;
+﻿
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography.Xml;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using MoviesAPI.Project.Data;
 using MoviesAPI.Project.Models;
@@ -38,9 +36,7 @@ namespace MoviesAPI.Project.Controllers
         public ActionResult<IEnumerable<Movie>> GetMoviesById(int movieId)
         {
             var moviesbyId = _moviesRepository.GetMoviesByID(movieId).ToList();
-
             var validMovies = ValidMovies(moviesbyId);
-
 
             if (validMovies.Count==1)
                 return Ok((validMovies));
@@ -50,6 +46,30 @@ namespace MoviesAPI.Project.Controllers
             return NotFound();
         }
 
+       
+
+        [HttpPost]
+        public ActionResult CreateMovie(Movie newMovie)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest();
+
+            // Normally dealt by DBContext auto increment 
+            var latest_id = _moviesRepository.GetAllMovies().Max(c => c.Id);
+            newMovie.Id = latest_id + 1;
+            
+            database.Add(newMovie);
+
+            return Created("metadata",newMovie);
+            
+        }
+
+
+        /// <summary>
+        /// Removing Empty Titles, Duration, Languages or ReleaseYear Entries
+        /// </summary>
+        /// <param name="moviesbyId"></param>
+        /// <returns></returns>
         private List<Movie> ValidMovies(List<Movie> moviesbyId)
         {
             var validMovlist = moviesbyId.Where(t => !string.IsNullOrEmpty(t.Title))
@@ -60,23 +80,11 @@ namespace MoviesAPI.Project.Controllers
             return validMovlist.ToList();
         }
 
-        [HttpPost]
-        public ActionResult CreateMovie(Movie newMovie)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest();
-
-            // Normally dealt by DBContext auto increment 
-
-            var latest_id = _moviesRepository.GetAllMovies().Max(c => c.Id);
-            newMovie.Id = latest_id + 1;
-            
-            database.Add(newMovie);
-            
-            return Created("metadata",newMovie);
-            
-        }
-
+        /// <summary>
+        /// Ordering Valid Movie List By Highest ID and Ordering by Language
+        /// </summary>
+        /// <param name="unOrderedMovies"></param>
+        /// <returns></returns>
         public IEnumerable<Movie> SortOrder(IEnumerable<Movie> unOrderedMovies)
         {
             var moviesGroupedByLanguage = unOrderedMovies.
